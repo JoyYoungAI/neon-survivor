@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SoundEffects } from '../utils/sound';
+import { Typography } from '../utils/typography';
 
 export class BriefingScene extends Phaser.Scene {
   private starfield!: Phaser.GameObjects.Graphics;
@@ -7,7 +8,6 @@ export class BriefingScene extends Phaser.Scene {
   private progressBar!: Phaser.GameObjects.Graphics;
   private launchBtn!: Phaser.GameObjects.Container;
   private scanline!: Phaser.GameObjects.Graphics;
-  private timerEvent?: Phaser.Time.TimerEvent;
 
   constructor() {
     super('BriefingScene');
@@ -16,11 +16,9 @@ export class BriefingScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    // Background
     this.starfield = this.add.graphics();
     this.drawBackground(width, height);
 
-    // Container for responsive alignment
     this.container = this.add.container(0, 0);
 
     // Scanline effect
@@ -37,10 +35,7 @@ export class BriefingScene extends Phaser.Scene {
 
     this.renderBriefing(width, height);
 
-    // Audio cue
     SoundEffects.playStart();
-
-    // Resize listener
     this.scale.on('resize', this.handleResize, this);
   }
 
@@ -49,7 +44,6 @@ export class BriefingScene extends Phaser.Scene {
     this.starfield.fillStyle(0x07070d, 1);
     this.starfield.fillRect(0, 0, w, h);
 
-    // Grid
     this.starfield.lineStyle(1, 0x11162d, 0.6);
     const step = 40;
     for (let x = 0; x < w; x += step) this.starfield.lineBetween(x, 0, x, h);
@@ -61,20 +55,27 @@ export class BriefingScene extends Phaser.Scene {
     const isLandscape = w > h;
 
     // Header Title
-    const title = this.add.text(w / 2, isLandscape ? 40 : 60, 'MISSION BRIEFING // 任務簡報', {
-      fontFamily: 'Orbitron',
-      fontSize: isLandscape ? '24px' : '20px',
-      color: '#00f0ff',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
+    const title = this.add.text(
+      w / 2,
+      isLandscape ? 36 : 56,
+      'MISSION BRIEFING // 任務簡報',
+      Typography.style(21, w, h, {
+        fontFamily: Typography.DISPLAY_FONT,
+        color: '#00f0ff',
+        fontStyle: 'bold',
+      })
+    ).setOrigin(0.5);
     this.container.add(title);
 
     // Cyber system log lines
-    const logText = this.add.text(w / 2, isLandscape ? 75 : 100, '> NEURAL INTERFACE ONLINE • SYSTEM READY', {
-      fontFamily: 'Outfit',
-      fontSize: '13px',
-      color: '#64748b',
-    }).setOrigin(0.5);
+    const logText = this.add.text(
+      w / 2,
+      isLandscape ? 68 : 94,
+      '> NEURAL INTERFACE ONLINE • SYSTEM READY',
+      Typography.style(12, w, h, {
+        color: '#64748b',
+      })
+    ).setOrigin(0.5);
     this.container.add(logText);
 
     // Instruction Cards (3 visual tips)
@@ -99,30 +100,28 @@ export class BriefingScene extends Phaser.Scene {
       },
     ];
 
-    const cardW = isLandscape ? 220 : Math.min(w * 0.88, 340);
-    const cardH = isLandscape ? 160 : 74;
+    const cardW = isLandscape ? Math.min(w * 0.28, 230) : Math.min(w * 0.88, 350);
+    const cardH = isLandscape ? Math.min(h * 0.45, 170) : Math.min(h * 0.12, 80);
 
     cards.forEach((card, i) => {
       let cx = w / 2;
       let cy = 0;
 
       if (isLandscape) {
-        // In landscape: arrange 3 columns horizontally
-        cx = w / 2 + (i - 1) * (cardW + 24);
+        cx = w / 2 + (i - 1) * (cardW + 18);
         cy = h * 0.44;
       } else {
-        // In portrait: arrange vertically
-        cy = 160 + i * (cardH + 16);
+        cy = 150 + i * (cardH + 14);
       }
 
-      const cardBox = this.createCard(cx, cy, cardW, cardH, card, isLandscape);
+      const cardBox = this.createCard(cx, cy, cardW, cardH, card, isLandscape, w, h);
       this.container.add(cardBox);
     });
 
     // Loading Bar
     const barW = Math.min(w * 0.82, 340);
     const barH = 10;
-    const barY = isLandscape ? h * 0.72 : h * 0.68;
+    const barY = isLandscape ? h * 0.73 : h * 0.70;
 
     const barBg = this.add.graphics();
     barBg.fillStyle(0x1a1b35, 1);
@@ -134,11 +133,15 @@ export class BriefingScene extends Phaser.Scene {
     this.progressBar = this.add.graphics();
     this.container.add(this.progressBar);
 
-    const loadingLabel = this.add.text(w / 2, barY - 18, 'SYSTEM CALIBRATION // 戰機校準中...', {
-      fontFamily: 'Orbitron',
-      fontSize: '12px',
-      color: '#38bdf8',
-    }).setOrigin(0.5);
+    const loadingLabel = this.add.text(
+      w / 2,
+      barY - 18,
+      'SYSTEM CALIBRATION // 戰機校準中...',
+      Typography.style(12, w, h, {
+        fontFamily: Typography.DISPLAY_FONT,
+        color: '#38bdf8',
+      })
+    ).setOrigin(0.5);
     this.container.add(loadingLabel);
 
     // Animate progress bar (fills in 3.2s)
@@ -159,15 +162,24 @@ export class BriefingScene extends Phaser.Scene {
     });
 
     // Immediate Launch Button
-    const btnY = isLandscape ? h * 0.85 : h * 0.82;
-    this.launchBtn = this.createLaunchButton(w / 2, btnY, '⚡ 立即出擊 (ENGAGE)', () => {
+    const btnY = isLandscape ? h * 0.86 : h * 0.83;
+    this.launchBtn = this.createLaunchButton(w / 2, btnY, '⚡ 立即出擊 (ENGAGE)', w, h, () => {
       progressTween.stop();
       this.launchGame();
     });
     this.container.add(this.launchBtn);
   }
 
-  private createCard(x: number, y: number, w: number, h: number, data: { icon: string; tag: string; desc: string; color: string }, isLandscape: boolean): Phaser.GameObjects.Container {
+  private createCard(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    data: { icon: string; tag: string; desc: string; color: string },
+    isLandscape: boolean,
+    vw: number,
+    vh: number
+  ): Phaser.GameObjects.Container {
     const card = this.add.container(x, y);
 
     const bg = this.add.graphics();
@@ -179,48 +191,59 @@ export class BriefingScene extends Phaser.Scene {
     const iconSprite = this.add.sprite(isLandscape ? 0 : -w / 2 + 36, isLandscape ? -h / 2 + 38 : 0, data.icon);
     iconSprite.setScale(isLandscape ? 0.9 : 0.8);
 
-    const tag = this.add.text(isLandscape ? 0 : -w / 2 + 74, isLandscape ? -8 : -14, data.tag, {
-      fontFamily: 'Orbitron',
-      fontSize: '15px',
-      color: data.color,
-      fontStyle: 'bold',
-    }).setOrigin(isLandscape ? 0.5 : 0, 0.5);
+    const tag = this.add.text(
+      isLandscape ? 0 : -w / 2 + 74,
+      isLandscape ? -8 : -14,
+      data.tag,
+      Typography.style(15, vw, vh, {
+        fontFamily: Typography.CHINESE_FONT,
+        color: data.color,
+        fontStyle: 'bold',
+      })
+    ).setOrigin(isLandscape ? 0.5 : 0, 0.5);
 
-    const desc = this.add.text(isLandscape ? 0 : -w / 2 + 74, isLandscape ? 38 : 12, data.desc, {
-      fontFamily: 'Outfit',
-      fontSize: '12px',
-      color: '#cbd5e1',
-      lineSpacing: 3,
-      align: isLandscape ? 'center' : 'left',
-    }).setOrigin(isLandscape ? 0.5 : 0, 0.5);
+    const desc = this.add.text(
+      isLandscape ? 0 : -w / 2 + 74,
+      isLandscape ? 40 : 13,
+      data.desc,
+      Typography.style(13, vw, vh, {
+        fontFamily: Typography.CHINESE_FONT,
+        color: '#e2e8f0',
+        lineSpacing: 4,
+        align: isLandscape ? 'center' : 'left',
+      })
+    ).setOrigin(isLandscape ? 0.5 : 0, 0.5);
 
     card.add([bg, iconSprite, tag, desc]);
     return card;
   }
 
-  private createLaunchButton(x: number, y: number, text: string, onClick: () => void): Phaser.GameObjects.Container {
+  private createLaunchButton(x: number, y: number, text: string, vw: number, vh: number, onClick: () => void): Phaser.GameObjects.Container {
     const container = this.add.container(x, y);
 
     const bg = this.add.graphics();
-    const btnW = 240;
+    const btnW = Math.min(vw * 0.72, 250);
     const btnH = 50;
     bg.fillStyle(0x00f0ff, 0.15);
     bg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
     bg.lineStyle(2, 0x00f0ff, 0.9);
     bg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
 
-    const label = this.add.text(0, 0, text, {
-      fontFamily: 'Orbitron',
-      fontSize: '16px',
-      color: '#00f0ff',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
+    const label = this.add.text(
+      0,
+      0,
+      text,
+      Typography.style(16, vw, vh, {
+        fontFamily: Typography.DISPLAY_FONT,
+        color: '#00f0ff',
+        fontStyle: 'bold',
+      })
+    ).setOrigin(0.5);
 
     container.add([bg, label]);
     container.setSize(btnW, btnH);
     container.setInteractive({ useHandCursor: true });
 
-    // Pulse animation
     this.tweens.add({
       targets: container,
       scaleX: 1.04,
@@ -231,10 +254,7 @@ export class BriefingScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    container.on('pointerdown', () => {
-      onClick();
-    });
-
+    container.on('pointerdown', () => onClick());
     return container;
   }
 

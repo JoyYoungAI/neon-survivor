@@ -62,7 +62,7 @@ export class SnapshotService {
     ctx.shadowBlur = 30;
     ctx.fillText('NEON SURVIVOR', width / 2, 140);
 
-    ctx.font = '700 32px "Outfit", sans-serif';
+    ctx.font = '700 32px "Noto Sans TC", "Outfit", sans-serif';
     ctx.fillStyle = '#94a3b8';
     ctx.shadowBlur = 0;
     ctx.fillText('— 遊戲高光精彩戰報 —', width / 2, 210);
@@ -87,7 +87,7 @@ export class SnapshotService {
     ctx.fillText('FINAL SCORE', width / 2, statsY + 130);
 
     // Sub-stats (Time, Gems, Player)
-    ctx.font = '500 34px "Outfit", sans-serif';
+    ctx.font = '500 34px "Noto Sans TC", "Outfit", sans-serif';
     ctx.fillStyle = '#38bdf8';
     const min = Math.floor(stats.timeSurvived / 60);
     const sec = stats.timeSurvived % 60;

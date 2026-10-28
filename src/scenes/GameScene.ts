@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { PlayerStats } from '../types/game';
 import { SoundEffects } from '../utils/sound';
 import { SnapshotService } from '../services/snapshotService';
+import { Typography } from '../utils/typography';
 
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
@@ -125,23 +126,35 @@ export class GameScene extends Phaser.Scene {
     const paddingX = isLandscape ? 36 : 20;
     const paddingY = 24;
 
-    this.scoreText = this.add.text(paddingX, paddingY, `SCORE: 0`, {
-      fontFamily: 'Russo One',
-      fontSize: isLandscape ? '22px' : '20px',
-      color: '#00f0ff',
-    });
+    this.scoreText = this.add.text(
+      paddingX,
+      paddingY,
+      `SCORE: 0`,
+      Typography.style(20, w, h, {
+        fontFamily: Typography.SCORE_FONT,
+        color: '#00f0ff',
+      })
+    );
 
-    this.livesText = this.add.text(w / 2, paddingY, 'SHIELDS: [ ■ ■ ■ ]', {
-      fontFamily: 'Orbitron',
-      fontSize: isLandscape ? '18px' : '16px',
-      color: '#38bdf8',
-    }).setOrigin(0.5, 0);
+    this.livesText = this.add.text(
+      w / 2,
+      paddingY,
+      'SHIELDS: [ ■ ■ ■ ]',
+      Typography.style(16, w, h, {
+        fontFamily: Typography.DISPLAY_FONT,
+        color: '#38bdf8',
+      })
+    ).setOrigin(0.5, 0);
 
-    this.timeText = this.add.text(w - paddingX, paddingY, 'TIME: 0s', {
-      fontFamily: 'Orbitron',
-      fontSize: isLandscape ? '18px' : '16px',
-      color: '#94a3b8',
-    }).setOrigin(1, 0);
+    this.timeText = this.add.text(
+      w - paddingX,
+      paddingY,
+      'TIME: 0s',
+      Typography.style(16, w, h, {
+        fontFamily: Typography.DISPLAY_FONT,
+        color: '#94a3b8',
+      })
+    ).setOrigin(1, 0);
   }
 
   private drawBackground(w: number, h: number) {
@@ -335,6 +348,10 @@ export class GameScene extends Phaser.Scene {
 
     const isLandscape = width > height;
     const paddingX = isLandscape ? 36 : 20;
+
+    this.scoreText.setFontSize(Typography.getPx(isLandscape ? 22 : 19, width, height));
+    this.livesText.setFontSize(Typography.getPx(isLandscape ? 17 : 15, width, height));
+    this.timeText.setFontSize(Typography.getPx(isLandscape ? 17 : 15, width, height));
 
     this.scoreText.setPosition(paddingX, 24);
     this.livesText.setPosition(width / 2, 24);
