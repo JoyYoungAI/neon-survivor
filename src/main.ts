@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
+import { BriefingScene } from './scenes/BriefingScene';
 import { GameScene } from './scenes/GameScene';
 import { GameOverScene } from './scenes/GameOverScene';
 
@@ -25,7 +26,7 @@ const config: Phaser.Types.Core.GameConfig = {
     pixelArt: false,
     antialias: true,
   },
-  scene: [BootScene, MenuScene, GameScene, GameOverScene],
+  scene: [BootScene, MenuScene, BriefingScene, GameScene, GameOverScene],
 };
 
 window.addEventListener('DOMContentLoaded', () => {

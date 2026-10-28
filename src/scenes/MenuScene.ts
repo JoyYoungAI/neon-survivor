@@ -40,7 +40,7 @@ export class MenuScene extends Phaser.Scene {
     // Start Button
     this.startBtn = this.createButton(width / 2, height * 0.58, '開始遊戲 (START)', '#00f0ff', () => {
       SoundEffects.playStart();
-      this.scene.start('GameScene');
+      this.scene.start('BriefingScene');
     });
 
     // Leaderboard Button
