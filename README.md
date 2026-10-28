@@ -3,6 +3,9 @@
 > **基於 pstack 嚴謹工程架構開發的跨平台 HTML5 行動端動作生存遊戲**  
 > 支援 iOS / Android 雙平台、直橫向無損自適應、Cloudflare Pages 託管、匿名排行榜與自動高光戰報截圖。
 
+🎮 **線上即玩 (Live Demo)**：[https://neon-survivor-7oo.pages.dev](https://neon-survivor-7oo.pages.dev)  
+📦 **GitHub 倉庫**：[https://github.com/JoyYoungAI/neon-survivor](https://github.com/JoyYoungAI/neon-survivor)
+
 ---
 
 ## 🌟 滿足專案 10 大核心需求
