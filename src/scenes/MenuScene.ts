@@ -7,7 +7,10 @@ export class MenuScene extends Phaser.Scene {
   private subtitleText!: Phaser.GameObjects.Text;
   private startBtn!: Phaser.GameObjects.Container;
   private lbBtn!: Phaser.GameObjects.Container;
+  private fontToggleBtn!: Phaser.GameObjects.Container;
+  private fontLabel!: Phaser.GameObjects.Text;
   private starfield!: Phaser.GameObjects.Graphics;
+  private removeFontListener?: () => void;
 
   constructor() {
     super('MenuScene');
@@ -16,9 +19,11 @@ export class MenuScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    // Background Cyber Grid
     this.starfield = this.add.graphics();
     this.drawBackground(width, height);
+
+    // Font Size Toggle Button (Quick Accessibility Switch)
+    this.createFontToggleButton(width);
 
     // Title
     this.titleText = this.add.text(
@@ -56,8 +61,50 @@ export class MenuScene extends Phaser.Scene {
       this.scene.start('GameOverScene', { previewOnly: true });
     });
 
+    // Font change sync
+    this.removeFontListener = Typography.addListener(() => {
+      if (this.fontLabel) this.fontLabel.setText(Typography.getLevelName());
+      this.handleResize({ width: this.scale.width, height: this.scale.height });
+    });
+
     this.scale.on('resize', this.handleResize, this);
     this.handleResize({ width, height });
+  }
+
+  private createFontToggleButton(width: number) {
+    this.fontToggleBtn = this.add.container(width / 2, 34);
+
+    const btnW = 190;
+    const btnH = 36;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x131428, 0.9);
+    bg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 8);
+    bg.lineStyle(1.5, 0x38bdf8, 0.6);
+    bg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 8);
+
+    this.fontLabel = this.add.text(
+      0,
+      0,
+      Typography.getLevelName(),
+      Typography.style(14, width, this.scale.height, {
+        color: '#38bdf8',
+        fontStyle: 'bold',
+      })
+    ).setOrigin(0.5);
+
+    this.fontToggleBtn.add([bg, this.fontLabel]);
+    this.fontToggleBtn.setSize(btnW, btnH);
+    this.fontToggleBtn.setInteractive({ useHandCursor: true });
+
+    this.fontToggleBtn.on('pointerdown', () => this.fontToggleBtn.setScale(0.96));
+    this.fontToggleBtn.on('pointerup', () => {
+      this.fontToggleBtn.setScale(1);
+      Typography.cycleLevel();
+      SoundEffects.playCollect();
+      this.fontLabel.setText(Typography.getLevelName());
+      this.handleResize({ width: this.scale.width, height: this.scale.height });
+    });
+    this.fontToggleBtn.on('pointerout', () => this.fontToggleBtn.setScale(1));
   }
 
   private drawBackground(w: number, h: number) {
@@ -117,17 +164,24 @@ export class MenuScene extends Phaser.Scene {
 
     this.titleText.setFontSize(Typography.getPx(isLandscape ? 40 : 36, width, height));
     this.subtitleText.setFontSize(Typography.getPx(isLandscape ? 17 : 16, width, height));
+    this.fontLabel.setFontSize(Typography.getPx(13, width, height));
 
     if (isLandscape) {
-      this.titleText.setPosition(width / 2, height * 0.22);
-      this.subtitleText.setPosition(width / 2, height * 0.36);
-      this.startBtn.setPosition(width / 2, height * 0.55);
-      this.lbBtn.setPosition(width / 2, height * 0.72);
+      this.fontToggleBtn.setPosition(width / 2, 28);
+      this.titleText.setPosition(width / 2, height * 0.24);
+      this.subtitleText.setPosition(width / 2, height * 0.38);
+      this.startBtn.setPosition(width / 2, height * 0.56);
+      this.lbBtn.setPosition(width / 2, height * 0.74);
     } else {
+      this.fontToggleBtn.setPosition(width / 2, 34);
       this.titleText.setPosition(width / 2, height * 0.28);
       this.subtitleText.setPosition(width / 2, height * 0.38);
       this.startBtn.setPosition(width / 2, height * 0.58);
       this.lbBtn.setPosition(width / 2, height * 0.70);
     }
+  }
+
+  destroy() {
+    if (this.removeFontListener) this.removeFontListener();
   }
 }

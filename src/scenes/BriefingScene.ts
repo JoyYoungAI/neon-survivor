@@ -54,10 +54,14 @@ export class BriefingScene extends Phaser.Scene {
     this.container.removeAll(true);
     const isLandscape = w > h;
 
+    // Font Toggle Button (Top Right / Center)
+    const fontToggle = this.createFontToggleButton(w, isLandscape ? 24 : 30);
+    this.container.add(fontToggle);
+
     // Header Title
     const title = this.add.text(
       w / 2,
-      isLandscape ? 36 : 56,
+      isLandscape ? 40 : 66,
       'MISSION BRIEFING // 任務簡報',
       Typography.style(21, w, h, {
         fontFamily: Typography.DISPLAY_FONT,
@@ -70,7 +74,7 @@ export class BriefingScene extends Phaser.Scene {
     // Cyber system log lines
     const logText = this.add.text(
       w / 2,
-      isLandscape ? 68 : 94,
+      isLandscape ? 72 : 102,
       '> NEURAL INTERFACE ONLINE • SYSTEM READY',
       Typography.style(12, w, h, {
         color: '#64748b',
@@ -111,7 +115,7 @@ export class BriefingScene extends Phaser.Scene {
         cx = w / 2 + (i - 1) * (cardW + 18);
         cy = h * 0.44;
       } else {
-        cy = 150 + i * (cardH + 14);
+        cy = 156 + i * (cardH + 14);
       }
 
       const cardBox = this.createCard(cx, cy, cardW, cardH, card, isLandscape, w, h);
@@ -168,6 +172,44 @@ export class BriefingScene extends Phaser.Scene {
       this.launchGame();
     });
     this.container.add(this.launchBtn);
+  }
+
+  private createFontToggleButton(w: number, y: number): Phaser.GameObjects.Container {
+    const isLandscape = w > this.scale.height;
+    const x = isLandscape ? w - 95 : w / 2;
+    const container = this.add.container(x, y);
+
+    const btnW = 160;
+    const btnH = 28;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x131428, 0.85);
+    bg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    bg.lineStyle(1, 0x38bdf8, 0.5);
+    bg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+
+    const label = this.add.text(
+      0,
+      0,
+      Typography.getLevelName(),
+      Typography.style(12, w, this.scale.height, {
+        color: '#38bdf8',
+        fontStyle: 'bold',
+      })
+    ).setOrigin(0.5);
+
+    container.add([bg, label]);
+    container.setSize(btnW, btnH);
+    container.setInteractive({ useHandCursor: true });
+
+    container.on('pointerdown', () => container.setScale(0.96));
+    container.on('pointerup', () => {
+      container.setScale(1);
+      Typography.cycleLevel();
+      SoundEffects.playCollect();
+      this.renderBriefing(this.scale.width, this.scale.height);
+    });
+
+    return container;
   }
 
   private createCard(
