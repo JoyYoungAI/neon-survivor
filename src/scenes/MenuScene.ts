@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { SoundEffects } from '../utils/sound';
 import { Typography } from '../utils/typography';
+import { ControlSettings } from '../utils/controls';
 
 export class MenuScene extends Phaser.Scene {
   private titleText!: Phaser.GameObjects.Text;
@@ -9,8 +10,11 @@ export class MenuScene extends Phaser.Scene {
   private lbBtn!: Phaser.GameObjects.Container;
   private fontToggleBtn!: Phaser.GameObjects.Container;
   private fontLabel!: Phaser.GameObjects.Text;
+  private controlToggleBtn!: Phaser.GameObjects.Container;
+  private controlLabel!: Phaser.GameObjects.Text;
   private starfield!: Phaser.GameObjects.Graphics;
   private removeFontListener?: () => void;
+  private removeControlListener?: () => void;
 
   constructor() {
     super('MenuScene');
@@ -22,7 +26,8 @@ export class MenuScene extends Phaser.Scene {
     this.starfield = this.add.graphics();
     this.drawBackground(width, height);
 
-    // Font Size Toggle Button (Quick Accessibility Switch)
+    // Control Mode & Font Size Toggle Buttons
+    this.createControlToggleButton(width);
     this.createFontToggleButton(width);
 
     // Title
@@ -67,15 +72,56 @@ export class MenuScene extends Phaser.Scene {
       this.handleResize({ width: this.scale.width, height: this.scale.height });
     });
 
+    // Control mode sync
+    this.removeControlListener = ControlSettings.addListener(() => {
+      if (this.controlLabel) this.controlLabel.setText(ControlSettings.getModeName());
+    });
+
     this.scale.on('resize', this.handleResize, this);
     this.handleResize({ width, height });
   }
 
-  private createFontToggleButton(width: number) {
-    this.fontToggleBtn = this.add.container(width / 2, 34);
+  private createControlToggleButton(width: number) {
+    this.controlToggleBtn = this.add.container(width / 2, 28);
 
-    const btnW = 190;
-    const btnH = 36;
+    const btnW = 230;
+    const btnH = 34;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0e1328, 0.9);
+    bg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 8);
+    bg.lineStyle(1.5, 0x00f0ff, 0.7);
+    bg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 8);
+
+    this.controlLabel = this.add.text(
+      0,
+      0,
+      ControlSettings.getModeName(),
+      Typography.style(12, width, this.scale.height, {
+        fontFamily: Typography.CHINESE_FONT,
+        color: '#00f0ff',
+        fontStyle: 'bold',
+      })
+    ).setOrigin(0.5);
+
+    this.controlToggleBtn.add([bg, this.controlLabel]);
+    this.controlToggleBtn.setSize(btnW, btnH);
+    this.controlToggleBtn.setInteractive({ useHandCursor: true });
+
+    this.controlToggleBtn.on('pointerdown', () => this.controlToggleBtn.setScale(0.96));
+    this.controlToggleBtn.on('pointerup', () => {
+      this.controlToggleBtn.setScale(1);
+      ControlSettings.cycleMode();
+      SoundEffects.playCollect();
+      this.controlLabel.setText(ControlSettings.getModeName());
+    });
+    this.controlToggleBtn.on('pointerout', () => this.controlToggleBtn.setScale(1));
+  }
+
+  private createFontToggleButton(width: number) {
+    this.fontToggleBtn = this.add.container(width / 2, 66);
+
+    const btnW = 180;
+    const btnH = 30;
     const bg = this.add.graphics();
     bg.fillStyle(0x131428, 0.9);
     bg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 8);
@@ -86,7 +132,8 @@ export class MenuScene extends Phaser.Scene {
       0,
       0,
       Typography.getLevelName(),
-      Typography.style(14, width, this.scale.height, {
+      Typography.style(12, width, this.scale.height, {
+        fontFamily: Typography.CHINESE_FONT,
         color: '#38bdf8',
         fontStyle: 'bold',
       })
@@ -164,16 +211,21 @@ export class MenuScene extends Phaser.Scene {
 
     this.titleText.setFontSize(Typography.getPx(isLandscape ? 40 : 36, width, height));
     this.subtitleText.setFontSize(Typography.getPx(isLandscape ? 17 : 16, width, height));
-    this.fontLabel.setFontSize(Typography.getPx(13, width, height));
+    this.fontLabel.setFontSize(Typography.getPx(12, width, height));
+    if (this.controlLabel) {
+      this.controlLabel.setFontSize(Typography.getPx(12, width, height));
+    }
 
     if (isLandscape) {
-      this.fontToggleBtn.setPosition(width / 2, 28);
+      this.controlToggleBtn.setPosition(width * 0.65, 26);
+      this.fontToggleBtn.setPosition(width * 0.35, 26);
       this.titleText.setPosition(width / 2, height * 0.24);
       this.subtitleText.setPosition(width / 2, height * 0.38);
       this.startBtn.setPosition(width / 2, height * 0.56);
       this.lbBtn.setPosition(width / 2, height * 0.74);
     } else {
-      this.fontToggleBtn.setPosition(width / 2, 34);
+      this.controlToggleBtn.setPosition(width / 2, 28);
+      this.fontToggleBtn.setPosition(width / 2, 66);
       this.titleText.setPosition(width / 2, height * 0.28);
       this.subtitleText.setPosition(width / 2, height * 0.38);
       this.startBtn.setPosition(width / 2, height * 0.58);
@@ -183,5 +235,6 @@ export class MenuScene extends Phaser.Scene {
 
   destroy() {
     if (this.removeFontListener) this.removeFontListener();
+    if (this.removeControlListener) this.removeControlListener();
   }
 }

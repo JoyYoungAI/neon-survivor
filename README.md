@@ -12,6 +12,8 @@
 
 1. **📱 手機遊戲最佳化**：
    - 專為觸控螢幕設計，支援指尖平滑拖曳滑動操作與微慣性 Lerp 追蹤。
+   - 具備**防遮擋相對位移拖曳 (Relative Drag)**、**垂直安全偏置 (+70px)** 與 **直接跟隨** 3 段操控模式，螢幕底端盲區微操達成 100% 零手指遮擋。
+   - 動態賽博導引線 (Cyber Tether) 與指尖觸控光環，提供高科技感視覺反饋。
    - 整合行動端觸覺回饋（Haptics / `navigator.vibrate`），碰撞時提供真實打擊感。
 2. **🍎/🤖 支援雙手機平台 (iOS & Android)**：
    - **iOS Safari**：妥善處理頂部瀏海與底部導覽條 Safe Area（`env(safe-area-inset-*)`），首觸解鎖 Web Audio Context 避免靜音。
@@ -42,7 +44,7 @@
     - **Throughput Checkpoint**：依序落實阻塞前置步驟、獨立工項與狀態機邊界劃分。
     - **Model the Domain**：使用嚴格型別定義遊戲狀態機（Boot、Menu、Playing、GameOver）。
     - **Boundary Discipline**：API 端點輸入消毒、防作弊邊界防禦與離線降級。
-    - **Prove It Works**：以單元測試與自動化建置實機驗證（Node 原生測試套件 3/3 通過）。
+    - **Prove It Works**：以單元測試與自動化建置實機驗證（Node 原生測試套件 7/7 通過）。
     - **Laziness Protocol**：無過度包裝與多餘相依，純粹、精準、高效。
 
 ---
@@ -52,7 +54,7 @@
 ### 本地開發預覽
 ```bash
 npm run dev
-# 伺服器啟動於 http://localhost:3000
+# 伺服器啟動於 http://localhost:3333
 ```
 
 ### 執行自動化測試

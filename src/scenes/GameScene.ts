@@ -3,6 +3,7 @@ import { PlayerStats } from '../types/game';
 import { SoundEffects } from '../utils/sound';
 import { SnapshotService } from '../services/snapshotService';
 import { Typography } from '../utils/typography';
+import { ControlSettings, ControlMode } from '../utils/controls';
 
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
@@ -21,10 +22,23 @@ export class GameScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
   private livesText!: Phaser.GameObjects.Text;
   private timeText!: Phaser.GameObjects.Text;
+  private modeButton!: Phaser.GameObjects.Container;
+  private modeLabel!: Phaser.GameObjects.Text;
   private starfield!: Phaser.GameObjects.Graphics;
+  private tetherGraphics!: Phaser.GameObjects.Graphics;
 
   private hazardTimer?: Phaser.Time.TimerEvent;
   private gemTimer?: Phaser.Time.TimerEvent;
+
+  // Touch control state
+  private isPointerDown = false;
+  private lastPointerX = 0;
+  private lastPointerY = 0;
+  private currentPointerX = 0;
+  private currentPointerY = 0;
+  private targetX = 0;
+  private targetY = 0;
+  private removeControlListener?: () => void;
 
   constructor() {
     super('GameScene');
@@ -38,12 +52,16 @@ export class GameScene extends Phaser.Scene {
     this.startTime = Date.now();
     this.isInvulnerable = false;
     this.isGameOver = false;
+    this.isPointerDown = false;
 
     const { width, height } = this.scale;
 
     // Background
     this.starfield = this.add.graphics();
     this.drawBackground(width, height);
+
+    // Tether & touch reticle graphics layer (under player)
+    this.tetherGraphics = this.add.graphics();
 
     // Particle Emitter for jet trail
     this.emitter = this.add.particles(0, 0, 'particle', {
@@ -60,28 +78,18 @@ export class GameScene extends Phaser.Scene {
     this.player.setCircle(20, 12, 12);
     this.emitter.startFollow(this.player, 0, 16);
 
+    // Initial target matches player position
+    this.targetX = this.player.x;
+    this.targetY = this.player.y;
+    this.lastPointerX = this.player.x;
+    this.lastPointerY = this.player.y;
+
     // Groups
     this.hazards = this.physics.add.group();
     this.gems = this.physics.add.group();
 
     // Touch / Pointer controls
-    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (this.isGameOver) return;
-      if (pointer.isDown || !this.sys.game.device.os.desktop) {
-        // Smooth lerp to pointer position
-        this.physics.moveToObject(this.player, pointer, 450);
-        const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, pointer.x, pointer.y);
-        if (dist < 15) {
-          (this.player.body as Phaser.Physics.Arcade.Body).reset(pointer.x, pointer.y);
-        }
-      }
-    });
-
-    this.input.on('pointerup', () => {
-      if (!this.isGameOver && this.player.body) {
-        this.player.setVelocity(0, 0);
-      }
-    });
+    this.setupInputHandlers();
 
     // Overlaps
     this.physics.add.overlap(this.player, this.hazards, this.handleHazardHit as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback, undefined, this);
@@ -119,6 +127,86 @@ export class GameScene extends Phaser.Scene {
 
     // Orientation change listener
     this.scale.on('resize', this.handleResize, this);
+
+    // Sync control mode changes
+    this.removeControlListener = ControlSettings.addListener(() => {
+      this.updateModeLabel();
+    });
+  }
+
+  private setupInputHandlers() {
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.isGameOver) return;
+      this.isPointerDown = true;
+      this.lastPointerX = pointer.x;
+      this.lastPointerY = pointer.y;
+      this.currentPointerX = pointer.x;
+      this.currentPointerY = pointer.y;
+
+      const mode = ControlSettings.getMode();
+      if (mode === 'RELATIVE') {
+        // Zero occlusion mode: player stays where it is, finger can touch anywhere
+        this.targetX = this.player.x;
+        this.targetY = this.player.y;
+      } else if (mode === 'OFFSET') {
+        const isLandscape = this.scale.width > this.scale.height;
+        const offset = isLandscape ? ControlSettings.LANDSCAPE_OFFSET_Y : ControlSettings.PORTRAIT_OFFSET_Y;
+        this.targetX = pointer.x;
+        this.targetY = pointer.y - offset;
+      } else {
+        // DIRECT
+        this.targetX = pointer.x;
+        this.targetY = pointer.y;
+      }
+      this.clampTarget();
+    });
+
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (this.isGameOver) return;
+      this.currentPointerX = pointer.x;
+      this.currentPointerY = pointer.y;
+
+      const mode = ControlSettings.getMode();
+      const isActive = pointer.isDown || this.isPointerDown || (this.sys.game.device.os.desktop && mode === 'DIRECT');
+      if (!isActive) return;
+
+      if (mode === 'RELATIVE') {
+        const dx = pointer.x - this.lastPointerX;
+        const dy = pointer.y - this.lastPointerY;
+        this.targetX += dx;
+        this.targetY += dy;
+        this.lastPointerX = pointer.x;
+        this.lastPointerY = pointer.y;
+      } else if (mode === 'OFFSET') {
+        const isLandscape = this.scale.width > this.scale.height;
+        const offset = isLandscape ? ControlSettings.LANDSCAPE_OFFSET_Y : ControlSettings.PORTRAIT_OFFSET_Y;
+        this.targetX = pointer.x;
+        this.targetY = pointer.y - offset;
+      } else {
+        // DIRECT
+        this.targetX = pointer.x;
+        this.targetY = pointer.y;
+      }
+      this.clampTarget();
+    });
+
+    this.input.on('pointerup', () => {
+      this.isPointerDown = false;
+      this.tetherGraphics.clear();
+      if (!this.isGameOver && this.player && this.player.body) {
+        this.player.setVelocity(0, 0);
+      }
+    });
+  }
+
+  private clampTarget() {
+    const { width, height } = this.scale;
+    const paddingX = 24;
+    const topPadding = 64; // protect top HUD from player ship
+    const bottomPadding = 24;
+
+    this.targetX = Phaser.Math.Clamp(this.targetX, paddingX, width - paddingX);
+    this.targetY = Phaser.Math.Clamp(this.targetY, topPadding, height - bottomPadding);
   }
 
   private createHUD(w: number, h: number) {
@@ -155,6 +243,50 @@ export class GameScene extends Phaser.Scene {
         color: '#94a3b8',
       })
     ).setOrigin(1, 0);
+
+    // In-game mode quick switcher badge (compact, below shields)
+    this.createModeButton(w, paddingY + 28);
+  }
+
+  private createModeButton(w: number, y: number) {
+    this.modeButton = this.add.container(w / 2, y);
+
+    const btnW = 160;
+    const btnH = 24;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0e1022, 0.75);
+    bg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    bg.lineStyle(1, 0x00f0ff, 0.4);
+    bg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+
+    this.modeLabel = this.add.text(
+      0,
+      0,
+      `${ControlSettings.getShortModeName()} ⇄`,
+      Typography.style(11, w, this.scale.height, {
+        fontFamily: Typography.CHINESE_FONT,
+        color: '#38bdf8',
+      })
+    ).setOrigin(0.5);
+
+    this.modeButton.add([bg, this.modeLabel]);
+    this.modeButton.setSize(btnW, btnH);
+    this.modeButton.setInteractive({ useHandCursor: true });
+
+    this.modeButton.on('pointerdown', () => this.modeButton.setScale(0.95));
+    this.modeButton.on('pointerup', () => {
+      this.modeButton.setScale(1);
+      ControlSettings.cycleMode();
+      SoundEffects.playCollect();
+      this.updateModeLabel();
+    });
+    this.modeButton.on('pointerout', () => this.modeButton.setScale(1));
+  }
+
+  private updateModeLabel() {
+    if (this.modeLabel) {
+      this.modeLabel.setText(`${ControlSettings.getShortModeName()} ⇄`);
+    }
   }
 
   private drawBackground(w: number, h: number) {
@@ -293,6 +425,7 @@ export class GameScene extends Phaser.Scene {
     this.hazardTimer?.destroy();
     this.gemTimer?.destroy();
     this.emitter.stop();
+    this.tetherGraphics.clear();
 
     const elapsedSeconds = Math.floor((Date.now() - this.startTime) / 1000);
     const stats: PlayerStats = {
@@ -318,8 +451,30 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  update() {
+  update(_time: number, delta: number) {
     if (this.isGameOver) return;
+
+    // Smooth movement towards target
+    const mode = ControlSettings.getMode();
+    const isActive = this.isPointerDown || (this.sys.game.device.os.desktop && mode === 'DIRECT');
+
+    if (isActive && this.player && this.player.body) {
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.targetX, this.targetY);
+      if (dist > 1) {
+        const dt = Math.min(delta / 1000, 0.05);
+        const lerpSpeed = mode === 'RELATIVE' ? 24 : 20;
+        const factor = Math.min(1, dt * lerpSpeed);
+        this.player.x = Phaser.Math.Linear(this.player.x, this.targetX, factor);
+        this.player.y = Phaser.Math.Linear(this.player.y, this.targetY, factor);
+      } else {
+        this.player.x = this.targetX;
+        this.player.y = this.targetY;
+      }
+      this.player.setVelocity(0, 0);
+    }
+
+    // Render Cyber Tether & Touch Reticle
+    this.renderTether(mode);
 
     // Clean up out of bound objects
     const { height } = this.scale;
@@ -342,6 +497,44 @@ export class GameScene extends Phaser.Scene {
     this.timeText.setText(`TIME: ${elapsed}s`);
   }
 
+  private renderTether(mode: ControlMode) {
+    this.tetherGraphics.clear();
+    if (this.isGameOver || !this.isPointerDown) return;
+
+    const px = this.currentPointerX;
+    const py = this.currentPointerY;
+
+    if (mode === 'RELATIVE') {
+      // 1. Touch point reticle ring
+      this.tetherGraphics.lineStyle(1.5, 0x00f0ff, 0.45);
+      this.tetherGraphics.strokeCircle(px, py, 20);
+
+      this.tetherGraphics.fillStyle(0x00f0ff, 0.25);
+      this.tetherGraphics.fillCircle(px, py, 5);
+
+      // 2. Subtle sci-fi laser guide line from touch point to spaceship
+      const dist = Phaser.Math.Distance.Between(px, py, this.player.x, this.player.y);
+      if (dist > 35) {
+        this.tetherGraphics.lineStyle(1, 0x00f0ff, 0.2);
+        this.tetherGraphics.lineBetween(px, py, this.player.x, this.player.y + 12);
+
+        // Subtle guide anchor dot behind ship
+        this.tetherGraphics.fillStyle(0x38bdf8, 0.4);
+        this.tetherGraphics.fillCircle(this.player.x, this.player.y + 16, 3);
+      }
+    } else if (mode === 'OFFSET') {
+      // Offset handle reticle
+      this.tetherGraphics.lineStyle(1.5, 0x38bdf8, 0.4);
+      this.tetherGraphics.strokeCircle(px, py, 18);
+      this.tetherGraphics.fillStyle(0x38bdf8, 0.2);
+      this.tetherGraphics.fillCircle(px, py, 4);
+
+      // Vertical guide beam connecting touch point to ship bottom
+      this.tetherGraphics.lineStyle(1, 0x38bdf8, 0.25);
+      this.tetherGraphics.lineBetween(px, py, this.player.x, this.player.y + 16);
+    }
+  }
+
   private handleResize(gameSize: { width: number; height: number }) {
     const { width, height } = gameSize;
     this.drawBackground(width, height);
@@ -357,9 +550,21 @@ export class GameScene extends Phaser.Scene {
     this.livesText.setPosition(width / 2, 24);
     this.timeText.setPosition(width - paddingX, 24);
 
+    if (this.modeButton) {
+      this.modeButton.setPosition(width / 2, 24 + 28);
+    }
+
     if (this.player) {
       this.player.setX(Math.min(this.player.x, width - 30));
       this.player.setY(Math.min(this.player.y, height - 30));
+      this.targetX = this.player.x;
+      this.targetY = this.player.y;
+    }
+  }
+
+  destroy() {
+    if (this.removeControlListener) {
+      this.removeControlListener();
     }
   }
 }
