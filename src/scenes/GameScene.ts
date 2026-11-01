@@ -25,6 +25,7 @@ export class GameScene extends Phaser.Scene {
   private modeButton!: Phaser.GameObjects.Container;
   private modeLabel!: Phaser.GameObjects.Text;
   private starfield!: Phaser.GameObjects.Graphics;
+  private hudBg!: Phaser.GameObjects.Graphics;
   private tetherGraphics!: Phaser.GameObjects.Graphics;
 
   private hazardTimer?: Phaser.Time.TimerEvent;
@@ -39,6 +40,7 @@ export class GameScene extends Phaser.Scene {
   private targetX = 0;
   private targetY = 0;
   private removeControlListener?: () => void;
+  private removeFontListener?: () => void;
 
   constructor() {
     super('GameScene');
@@ -95,7 +97,7 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.hazards, this.handleHazardHit as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback, undefined, this);
     this.physics.add.overlap(this.player, this.gems, this.handleGemCollect as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback, undefined, this);
 
-    // HUD
+    // HUD (Layered with frosted glass cyber backdrop)
     this.createHUD(width, height);
 
     // Timers for spawning
@@ -131,6 +133,11 @@ export class GameScene extends Phaser.Scene {
     // Sync control mode changes
     this.removeControlListener = ControlSettings.addListener(() => {
       this.updateModeLabel();
+    });
+
+    // Sync typography scale changes
+    this.removeFontListener = Typography.addListener(() => {
+      this.updateHUDLayout(this.scale.width, this.scale.height);
     });
   }
 
@@ -201,8 +208,9 @@ export class GameScene extends Phaser.Scene {
 
   private clampTarget() {
     const { width, height } = this.scale;
+    const isLandscape = width > height;
     const paddingX = 24;
-    const topPadding = 64; // protect top HUD from player ship
+    const topPadding = isLandscape ? 80 : 124; // Protect multi-tier HUD from player ship
     const bottomPadding = 24;
 
     this.targetX = Phaser.Math.Clamp(this.targetX, paddingX, width - paddingX);
@@ -210,53 +218,114 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createHUD(w: number, h: number) {
-    const isLandscape = w > h;
-    const paddingX = isLandscape ? 36 : 20;
-    const paddingY = 24;
+    // Semi-transparent frosted cyber backdrop (keeps texts crystal clear from falling hazards)
+    this.hudBg = this.add.graphics().setDepth(90);
 
     this.scoreText = this.add.text(
-      paddingX,
-      paddingY,
+      0,
+      0,
       `SCORE: 0`,
-      Typography.style(20, w, h, {
+      Typography.style(18, w, h, {
         fontFamily: Typography.SCORE_FONT,
         color: '#00f0ff',
       })
-    );
+    ).setDepth(100);
 
     this.livesText = this.add.text(
-      w / 2,
-      paddingY,
+      0,
+      0,
       'SHIELDS: [ ■ ■ ■ ]',
-      Typography.style(16, w, h, {
+      Typography.style(15, w, h, {
         fontFamily: Typography.DISPLAY_FONT,
         color: '#38bdf8',
       })
-    ).setOrigin(0.5, 0);
+    ).setDepth(100);
 
     this.timeText = this.add.text(
-      w - paddingX,
-      paddingY,
+      0,
+      0,
       'TIME: 0s',
-      Typography.style(16, w, h, {
+      Typography.style(15, w, h, {
         fontFamily: Typography.DISPLAY_FONT,
         color: '#94a3b8',
       })
-    ).setOrigin(1, 0);
+    ).setDepth(100);
 
-    // In-game mode quick switcher badge (compact, below shields)
-    this.createModeButton(w, paddingY + 28);
+    // In-game mode quick switcher badge
+    this.createModeButton(w, 88);
+
+    // Initial responsive layout positioning
+    this.updateHUDLayout(w, h);
+  }
+
+  private updateHUDLayout(w: number, h: number) {
+    const isLandscape = w > h;
+
+    this.scoreText.setFontSize(Typography.getPx(isLandscape ? 20 : 17, w, h));
+    this.livesText.setFontSize(Typography.getPx(isLandscape ? 16 : 14, w, h));
+    this.timeText.setFontSize(Typography.getPx(isLandscape ? 16 : 14, w, h));
+
+    // Draw HUD frosted glass background bar
+    this.hudBg.clear();
+    const hudHeight = isLandscape ? 72 : 116;
+
+    // Dark cyberpunk translucent bar
+    this.hudBg.fillStyle(0x07070d, 0.85);
+    this.hudBg.fillRect(0, 0, w, hudHeight);
+
+    // Cyber neon hairline separator
+    this.hudBg.lineStyle(1.5, 0x00f0ff, 0.35);
+    this.hudBg.lineBetween(0, hudHeight, w, hudHeight);
+
+    if (!isLandscape) {
+      // PORTRAIT MODE: Clean 3-tier hierarchy, completely eliminates any horizontal text collision
+      const paddingX = 18;
+      const row1Y = 28; // SCORE on Left, TIME on Right
+      const row2Y = 58; // SHIELDS in Center
+      const row3Y = 90; // CONTROL MODE BADGE in Center
+
+      this.scoreText.setOrigin(0, 0);
+      this.scoreText.setPosition(paddingX, row1Y);
+
+      this.timeText.setOrigin(1, 0);
+      this.timeText.setPosition(w - paddingX, row1Y);
+
+      this.livesText.setOrigin(0.5, 0);
+      this.livesText.setPosition(w / 2, row2Y);
+
+      if (this.modeButton) {
+        this.modeButton.setPosition(w / 2, row3Y);
+      }
+    } else {
+      // LANDSCAPE MODE: Wide single-line layout
+      const paddingX = 32;
+      const row1Y = 18;
+      const row2Y = 48;
+
+      this.scoreText.setOrigin(0, 0);
+      this.scoreText.setPosition(paddingX, row1Y);
+
+      this.livesText.setOrigin(0.5, 0);
+      this.livesText.setPosition(w / 2, row1Y);
+
+      this.timeText.setOrigin(1, 0);
+      this.timeText.setPosition(w - paddingX, row1Y);
+
+      if (this.modeButton) {
+        this.modeButton.setPosition(w / 2, row2Y);
+      }
+    }
   }
 
   private createModeButton(w: number, y: number) {
-    this.modeButton = this.add.container(w / 2, y);
+    this.modeButton = this.add.container(w / 2, y).setDepth(100);
 
     const btnW = 160;
     const btnH = 24;
     const bg = this.add.graphics();
-    bg.fillStyle(0x0e1022, 0.75);
+    bg.fillStyle(0x0e1022, 0.85);
     bg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
-    bg.lineStyle(1, 0x00f0ff, 0.4);
+    bg.lineStyle(1, 0x00f0ff, 0.45);
     bg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
 
     this.modeLabel = this.add.text(
@@ -538,25 +607,13 @@ export class GameScene extends Phaser.Scene {
   private handleResize(gameSize: { width: number; height: number }) {
     const { width, height } = gameSize;
     this.drawBackground(width, height);
-
-    const isLandscape = width > height;
-    const paddingX = isLandscape ? 36 : 20;
-
-    this.scoreText.setFontSize(Typography.getPx(isLandscape ? 22 : 19, width, height));
-    this.livesText.setFontSize(Typography.getPx(isLandscape ? 17 : 15, width, height));
-    this.timeText.setFontSize(Typography.getPx(isLandscape ? 17 : 15, width, height));
-
-    this.scoreText.setPosition(paddingX, 24);
-    this.livesText.setPosition(width / 2, 24);
-    this.timeText.setPosition(width - paddingX, 24);
-
-    if (this.modeButton) {
-      this.modeButton.setPosition(width / 2, 24 + 28);
-    }
+    this.updateHUDLayout(width, height);
 
     if (this.player) {
-      this.player.setX(Math.min(this.player.x, width - 30));
-      this.player.setY(Math.min(this.player.y, height - 30));
+      const isLandscape = width > height;
+      const topPadding = isLandscape ? 80 : 124;
+      this.player.setX(Math.min(Math.max(this.player.x, 30), width - 30));
+      this.player.setY(Math.min(Math.max(this.player.y, topPadding), height - 30));
       this.targetX = this.player.x;
       this.targetY = this.player.y;
     }
@@ -565,6 +622,9 @@ export class GameScene extends Phaser.Scene {
   destroy() {
     if (this.removeControlListener) {
       this.removeControlListener();
+    }
+    if (this.removeFontListener) {
+      this.removeFontListener();
     }
   }
 }
